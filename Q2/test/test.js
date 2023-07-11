@@ -1,6 +1,6 @@
 const { expect, assert } = require("chai");
 const { ethers } = require("hardhat");
-const { groth16 } = require("snarkjs");
+const { groth16, plonk } = require("snarkjs");
 
 const wasm_tester = require("circom_tester").wasm;
 
@@ -152,13 +152,42 @@ describe("Multiplier3 with Groth16", function () {
 describe("Multiplier3 with PLONK", function () {
   beforeEach(async function () {
     //[assignment] insert your script here
+    Verifier = await ethers.getContractFactory("Multiplier3Verifier_plonk");
+    verifier = await Verifier.deploy();
+    await verifier.deployed();
   });
 
   it("Should return true for correct proof", async function () {
     //[assignment] insert your script here
+    const { proof, publicSignals } = await plonk.fullProve(
+      { a: "2", b: "3", c: "4" },
+      "contracts/circuits/Multiplier3_plonk/Multiplier3_js/Multiplier3.wasm",
+      "contracts/circuits/Multiplier3_plonk/circuit_final.zkey"
+    );
+
+    console.log("2x3x4 =", publicSignals[0]);
+
+    let rawCalldata = await plonk.exportSolidityCallData(proof, publicSignals);
+
+    // fix string by replacing "][" with ", "
+    const fixedStr = rawCalldata.replace(/\]\[/g, ", ");
+
+    // convert the calldata string into an array of BigInts
+    const fixedArray = fixedStr
+      .replace(/["[\]\s]/g, "")
+      .split(",")
+      .map((x) => BigInt(x).toString());
+
+    // drop the last element of the array (the inputs)
+    const calldata = [...fixedArray.slice(0, -1)];
+
+    expect(await verifier.verifyProof(calldata, publicSignals)).to.be.true;
   });
 
   it("Should return false for invalid proof", async function () {
     //[assignment] insert your script here
+    let calldata = new Array(24).fill(0);
+    let publicSignals = [0];
+    expect(await verifier.verifyProof(calldata, publicSignals)).to.be.false;
   });
 });
