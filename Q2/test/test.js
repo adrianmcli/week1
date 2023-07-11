@@ -39,12 +39,17 @@ describe("HelloWorld", function () {
 
     it("Should return true for correct proof", async function () {
         //[assignment] Add comments to explain what each line is doing
+
+        // create a proof and public signals from the circuit and some input
         const { proof, publicSignals } = await groth16.fullProve({"a":"2","b":"3"}, "contracts/circuits/HelloWorld/HelloWorld_js/HelloWorld.wasm","contracts/circuits/HelloWorld/circuit_final.zkey");
 
+        // print out "c" in the circuit (i.e. the result of the private inputs)
         console.log('2x3 =',publicSignals[0]);
         
+        // create a string of the calldata for the verifier contract
         const calldata = await groth16.exportSolidityCallData(proof, publicSignals);
     
+        // convert the calldata string into an array of BigInts
         const argv = calldata.replace(/["[\]\s]/g, "").split(',').map(x => BigInt(x).toString());
     
         const a = [argv[0], argv[1]];
